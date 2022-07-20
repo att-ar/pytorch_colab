@@ -3,47 +3,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
+import numpy as np
 
-def line_plot(data, x_axis, y_axis, title = None, from_txt = False):
-    '''
-    pandas.DataFrame or .txt file, str[, bool] -> plotly line plot object
-
-    This function takes either a pd.DataFrame or a .txt file from the Maccor,
-    a string of the column name to be plotted against "Test Time" and returns a plotly line plot
-
-    Parameters:
-    `data` pd.DataFrame or .txt file from Maccor
-
-    `y_axis` str of column name to be plotted
-
-    `title` optional str of the plot's title
-        default = None, if left as None the title will be "[Column Name] vs. Time"
-    '''
-    #error checking
-    if (type(y_axis) != str and type(y_axis) != list) or type(x_axis) != str:
-        return "Error: axes must be a column name as a string or a list of strings"
-
-    if title != None and type(title) != str:
-        return "Error: title must be a valid string if it is declared"
-
-    elif title == None: #setting the default title for the plot
-        if type(y_axis) == str:
-            title = y_axis + " vs. Time"
-        else:
-            title = ""
-            for i in range(len(y_axis)):
-                title += y_axis[i] + "/"
-            title += " vs. Time"
-
-    if from_txt:#if the data is not a DataFrame, it needs to be turned into one
-        data = pd.read_csv(data, skiprows = [0,1,2] , delimiter = '\t')
-    #making the plotly object
-    fig = px.line(data, x = x_axis, y = y_axis, title = title)
-    #note that title = title is not an error, because keywords are not the same as variable
-    return fig
-
-##-------------------------------------------------------------------------------------
-#New plotting function
 
 def helper(value, j):
     '''
@@ -53,14 +14,15 @@ def helper(value, j):
         return None
     elif type(value) == list and j < len(value):
         return value[j]
-    else: #not a list so only one value
+    else:  # not a list so only one value
         if j == 0:
             return value
         else:
             return None
 
-def data_plot(data = None, x = None, y = None,
-              x_title = None, y_title = None, title = None,
+
+def data_plot(data=None, x=None, y=None,
+              x_title=None, y_title=None, title=None,
               **kwargs):
     '''
     list of pandas.DataFrame, list of str, list of str, list of str, kwargs -> plotly plot object
@@ -76,10 +38,6 @@ def data_plot(data = None, x = None, y = None,
                       mode = ["lines+markers", "markers"],
                       color = ["mintcream", "darkorchid"]
                       )
-
-    ****Note:if only one DataFrame and one column for the x-axis are needed then use line_plot() instead.
-             line_plot() can accept multiple columns for the y-axis.
-             This function will not work well for simple plots.
 
     This function takes one or more DataFrames, columns from the respective DataFrames to be plot on x and y-axes.
     It also takes the mode of plotting desired for the DataFrames and optional keyword arguments.
@@ -197,13 +155,13 @@ def data_plot(data = None, x = None, y = None,
     figure...
     '''
     if type(data) == list and not pd.Series(
-                                            pd.Series([len(x), len(y)]) == len(data)
-                                            ).all():
+        pd.Series([len(x), len(y)]) == len(data)
+    ).all():
         return '''Error: x and y columns passed much match the number of DataFrames passed
         Use nested lists for multiple columns from the same DataFrame
         '''
 
-    elif type(data) != list and not pd.Series( pd.Series( [len(x), len(y)] ) == 1 ).all():
+    elif type(data) != list and not pd.Series(pd.Series([len(x), len(y)]) == 1).all():
         return '''Error: x and y columns passed much match the number of DataFrames passed
         Use nested lists for multiple columns from the same DataFrame
         '''
@@ -224,16 +182,17 @@ def data_plot(data = None, x = None, y = None,
         if type(kwargs["size"]) == list and len(kwargs["size"]) > len(data):
             return "Error: passed more sizes than DataFrames"
 
-    frame = pd.DataFrame(data = {"x" : x, "y" : y})
+    frame = pd.DataFrame(data={"x": x, "y": y})
 
-    for i in ["color","mode","name","size"]:
+    for i in ["color", "mode", "name", "size"]:
         frame = frame.join(
-                            pd.Series( kwargs.get(i), name = i, dtype = "object" ),
-                            how = "outer" )
+            pd.Series(kwargs.get(i), name=i, dtype="object"),
+            how="outer")
 
-    frame.fillna("None",inplace=True)
+    frame.fillna("None", inplace=True)
 
-    figure = make_subplots(x_title = x_title, y_title = y_title, subplot_titles = [title])
+    figure = make_subplots(
+        x_title=x_title, y_title=y_title, subplot_titles=[title])
 
     for i in frame.index:
         if type(data) == list:
@@ -241,35 +200,93 @@ def data_plot(data = None, x = None, y = None,
         else:
             use_data = data
 
-        if type(frame["x"][i]) == list: #y[i] must be a list
+        if type(frame["x"][i]) == list:  # y[i] must be a list
             for j in range(len(x[i])):
-                use_x = frame.loc[i,"x"][j]
-                use_y = frame.loc[i,"y"][j]
+                use_x = frame.loc[i, "x"][j]
+                use_y = frame.loc[i, "y"][j]
 
-                use_color = helper(frame.loc[i,"color"], j)
-                use_mode = helper(frame.loc[i,"mode"], j)
-                use_name = helper(frame.loc[i,"name"], j)
-                use_size = helper(frame.loc[i,"size"], j)
+                use_color = helper(frame.loc[i, "color"], j)
+                use_mode = helper(frame.loc[i, "mode"], j)
+                use_name = helper(frame.loc[i, "name"], j)
+                use_size = helper(frame.loc[i, "size"], j)
 
                 figure.add_trace(
                     go.Scatter(
-                        x = use_data[use_x], y = use_data[use_y],
-                        mode = use_mode, marker = {"size" : use_size, "color" : use_color},
-                        name = use_name)
-                    )
-        else: #x[i] and y[i] are not lists
-            use_x = frame.loc[i,"x"]
-            use_y = frame.loc[i,"y"]
-            use_color = helper(frame.loc[i,"color"], 0)
-            use_mode = helper(frame.loc[i,"mode"], 0)
-            use_name = helper(frame.loc[i,"name"], 0)
-            use_size = helper(frame.loc[i,"size"], 0)
-            #zero is just a placholder
+                        x=use_data[use_x], y=use_data[use_y],
+                        mode=use_mode, marker={
+                            "size": use_size, "color": use_color},
+                        name=use_name)
+                )
+        else:  # x[i] and y[i] are not lists
+            use_x = frame.loc[i, "x"]
+            use_y = frame.loc[i, "y"]
+            use_color = helper(frame.loc[i, "color"], 0)
+            use_mode = helper(frame.loc[i, "mode"], 0)
+            use_name = helper(frame.loc[i, "name"], 0)
+            use_size = helper(frame.loc[i, "size"], 0)
+            # zero is just a placholder
 
             figure.add_trace(
                 go.Scatter(
-                    x = use_data[use_x], y = use_data[use_y],
-                    mode = use_mode, marker = {"size" : use_size, "color" : use_color},
-                    name = use_name)
-                )
+                    x=use_data[use_x], y=use_data[use_y],
+                    mode=use_mode, marker={
+                        "size": use_size, "color": use_color},
+                    name=use_name)
+            )
     return figure
+
+
+def rolling(df, window_size):
+    '''
+    implements rolling window sectioning
+    There are four input features: delta_t, V, I at time t, and SOC at time t-1
+    Prediction at time t uses the features given
+    '''
+    df_x = (df[["delta t", "current", "voltage"]].iloc[1:].reset_index(drop=True)  # staggered right by one
+            .join(
+        df["soc"].iloc[:-1].reset_index(drop=True),  # staggered left by one
+        how="outer"
+    ))
+    df_x = [window.values
+            for window
+            in df_x.rolling(window=window_size,
+                            min_periods=window_size - 2,
+                            method="table"
+                            )][window_size:]
+
+    df_y = df["soc"].iloc[1:]  # staggered right by one
+    df_y = [window.values
+            for window
+            in df_y.rolling(window=window_size,
+                            min_periods=window_size - 2,
+                            method="single"
+                            )][window_size:]
+
+    return np.array(df_x, dtype="float32"), np.array(df_y, dtype="float32")
+
+
+def rolling_trial(df, window_size):
+    '''
+    implements rolling window sectioning
+    Four input features: delta_t, I, V, SOC all at time t-1
+    The prediction of SOC at time t uses no other information
+    '''
+
+    df_x = [window.values
+            for window
+            # staggered left by one
+            in df[["delta t", "current", "voltage", "soc"]].iloc[:-1]
+            .rolling(window=window_size,
+                     min_periods=window_size - 2,
+                     method="table"
+                     )][window_size:]
+
+    df_y = [window.values
+            for window
+            in df["soc"].iloc[1:]  # staggered right by one
+            .rolling(window=window_size,
+                     min_periods=window_size - 2,
+                     method="single"
+                     )][window_size:]
+
+    return np.array(df_x, dtype="float32"), np.array(df_y, dtype="float32")
