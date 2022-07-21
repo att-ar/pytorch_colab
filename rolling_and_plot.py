@@ -254,13 +254,7 @@ def rolling(df, window_size):
                             method="table"
                             )][window_size:]
 
-    df_y = df["soc"].iloc[1:]  # staggered right by one
-    df_y = [window.values
-            for window
-            in df_y.rolling(window=window_size,
-                            min_periods=window_size - 2,
-                            method="single"
-                            )][window_size:]
+    df_y = df["soc"].iloc[window_size + 1:].values  # staggered right by one
 
     return np.array(df_x, dtype="float32"), np.array(df_y, dtype="float32")
 
@@ -281,12 +275,6 @@ def rolling_trial(df, window_size):
                      method="table"
                      )][window_size:]
 
-    df_y = [window.values
-            for window
-            in df["soc"].iloc[1:]  # staggered right by one
-            .rolling(window=window_size,
-                     min_periods=window_size - 2,
-                     method="single"
-                     )][window_size:]
+    df_y = df["soc"].iloc[window_size + 1:].values
 
     return np.array(df_x, dtype="float32"), np.array(df_y, dtype="float32")
