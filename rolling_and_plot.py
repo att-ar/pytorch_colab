@@ -247,6 +247,9 @@ def normalize(train_data: pd.DataFrame, test_data: pd.DataFrame):
     and dividing by the variance (sigma) of the train set:
     Results in a distribution with mean = 0 and variance = 1
 
+    Does not apply to the soc values though, they are simply divided by 100
+    to put them on a scale of 0-1 instead of 0-100.
+
     Note: using the same mu and sigma for the test set to keep them from the same distribution
 
     Output:
@@ -254,12 +257,14 @@ def normalize(train_data: pd.DataFrame, test_data: pd.DataFrame):
     '''
     variables = {"mu_current": 0,
                  "mu_voltage": 0,
-                 "mu_soc": 0,
                  "sigma_current": 0,
-                 "sigma_voltage": 0,
-                 "sigma_soc": 0}
+                 "sigma_voltage": 0}
 
     for col in train_data.columns:
+        if col == "soc":  # soc will be treated separately
+            train_data[col] /= 100.
+            test_data[col] /= 100.
+            continue
         variables["mu_" + col] = train_data[col].mean(axis=0)
         train_data[col] -= variables["mu_" + col]
         test_data[col] -= variables["mu_" + col]
@@ -286,7 +291,7 @@ test mean:\n{test_data.mean(axis=0)}''')
 # -------------------------------------------------------
 
 
-def rolling(df, window_size):
+def rolling_trial(df, window_size):
     '''
     implements rolling window sectioning
     There are four input features: delta_t, V, I at time t, and SOC at time t-1
@@ -310,22 +315,23 @@ def rolling(df, window_size):
 
     # staggered right by one
     df_y = df["soc"].iloc[window_size + 1:].values[:, np.newaxis]
-    # df_y = df_y[:,np.newaxis]
 
     return np.array(df_x, dtype="float32"), np.array(df_y, dtype="float32")
 
 
-def rolling_trial(df, window_size):
+def rolling(df, window_size):
     '''
+    Precondition: "delta t" is not in the columns
     implements rolling window sectioning
     Four input features: delta_t, I, V, SOC all at time t-1
     The prediction of SOC at time t uses no other information
     '''
+    assert "delta t" not in df.columns
 
     df_x = [window.values
             for window
             # staggered left by one
-            in df[["delta t", "current", "voltage", "soc"]].iloc[:-1]
+            in df[["current", "voltage", "soc"]].iloc[:-1]
             .rolling(window=window_size,
                      min_periods=window_size - 2,
                      method="table"
@@ -333,5 +339,5 @@ def rolling_trial(df, window_size):
 
     df_y = df["soc"].iloc[window_size + 1:].values
 
-    return np.array(df_x, dtype="float32")[:np.newaxis],
-    np.array(df_y, dtype="float32")[:np.newaxis]
+    return np.array(df_x, dtype="float32")[:, np.newaxis],
+    np.array(df_y, dtype="float32")[:, np.newaxis]
