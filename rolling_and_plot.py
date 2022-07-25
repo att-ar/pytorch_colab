@@ -235,6 +235,56 @@ def data_plot(data=None, x=None, y=None,
             )
     return figure
 
+# -------------------------------------------------------
+
+
+def normalize(train_data: pd.DataFrame, test_data: pd.DataFrame):
+    '''
+    pd.DataFrame, pd.DataFrmae -> pd.DataFrame, pd.DataFrame, dict
+    Precondition: "delta t" is removed from the DataFrame
+
+    Normalizes the train & test data by subtracting the mean (mu)
+    and dividing by the variance (sigma) of the train set:
+    Results in a distribution with mean = 0 and variance = 1
+
+    Note: using the same mu and sigma for the test set to keep them from the same distribution
+
+    Output:
+        normalized train DataFrame, normalized test DataFrame, dict of floats
+    '''
+    variables = {"mu_current": 0,
+                 "mu_voltage": 0,
+                 "mu_soc": 0,
+                 "sigma_current": 0,
+                 "sigma_voltage": 0,
+                 "sigma_soc": 0}
+
+    for col in train_data.columns:
+        variables["mu_" + col] = train_data[col].mean(axis=0)
+        train_data[col] -= variables["mu_" + col]
+        test_data[col] -= variables["mu_" + col]
+
+        variables["sigma_" + col] = np.power(
+            np.power(train_data[col], 2).mean(axis=0),
+            0.5
+        )
+        train_data[col] /= variables["sigma_" + col]
+        test_data[col] /= variables["sigma_" + col]
+
+    print(f'''Normalized stats:
+
+train variance:\n{train_data.var(axis = 0)},
+
+train mean:\n{train_data.mean(axis=0)},
+
+test variance:\n{test_data.var(axis=0)},
+
+test mean:\n{test_data.mean(axis=0)}''')
+
+    return train_data, test_data, variables
+
+# -------------------------------------------------------
+
 
 def rolling(df, window_size):
     '''
@@ -242,7 +292,11 @@ def rolling(df, window_size):
     There are four input features: delta_t, V, I at time t, and SOC at time t-1
     Prediction at time t uses the features given
     '''
-    df_x = (df[["delta t", "current", "voltage"]].iloc[1:].reset_index(drop=True)  # staggered right by one
+    if "delta t" in df.columns:
+        col = ["delta t", "current", "voltage"]
+    else:
+        col = ["current", "voltage"]
+    df_x = (df[col].iloc[1:].reset_index(drop=True)  # staggered right by one
             .join(
         df["soc"].iloc[:-1].reset_index(drop=True),  # staggered left by one
         how="outer"
@@ -254,7 +308,9 @@ def rolling(df, window_size):
                             method="table"
                             )][window_size:]
 
-    df_y = df["soc"].iloc[window_size + 1:].values  # staggered right by one
+    # staggered right by one
+    df_y = df["soc"].iloc[window_size + 1:].values[:, np.newaxis]
+    # df_y = df_y[:,np.newaxis]
 
     return np.array(df_x, dtype="float32"), np.array(df_y, dtype="float32")
 
@@ -277,4 +333,5 @@ def rolling_trial(df, window_size):
 
     df_y = df["soc"].iloc[window_size + 1:].values
 
-    return np.array(df_x, dtype="float32"), np.array(df_y, dtype="float32")
+    return np.array(df_x, dtype="float32")[:np.newaxis],
+    np.array(df_y, dtype="float32")[:np.newaxis]
