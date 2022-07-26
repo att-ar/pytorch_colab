@@ -246,8 +246,11 @@ def normalize(train_data: pd.DataFrame, test_data: pd.DataFrame):
     Normalizes the train & test data by subtracting the mean (mu)
     and dividing by the variance (sigma) of the train set:
     Results in a distribution with mean = 0 and variance = 1
+    
+    Only done to the Voltage data; the current data has negative and positive
+    values which is necessary to the algorithm so it can't be touched.
 
-    Does not apply to the soc values though, they are simply divided by 100
+    Soc values are simply divided by 100
     to put them on a scale of 0-1 instead of 0-100.
 
     Note: using the same mu and sigma for the test set to keep them from the same distribution
@@ -255,16 +258,15 @@ def normalize(train_data: pd.DataFrame, test_data: pd.DataFrame):
     Output:
         normalized train DataFrame, normalized test DataFrame, dict of floats
     '''
-    variables = {"mu_current": 0,
+    variables = {#"mu_current": 0,
                  "mu_voltage": 0,
-                 "sigma_current": 0,
+                 #"sigma_current": 0,
                  "sigma_voltage": 0}
 
-    for col in train_data.columns:
-        if col == "soc":  # soc will be treated separately
-            train_data[col] /= 100.
-            test_data[col] /= 100.
-            continue
+    train_data["soc"] /= 100.
+    test_data["soc"] /= 100.
+    
+    for col in ["voltage"]: #train_data.columns:
         variables["mu_" + col] = train_data[col].mean(axis=0)
         train_data[col] -= variables["mu_" + col]
         test_data[col] -= variables["mu_" + col]
@@ -272,7 +274,7 @@ def normalize(train_data: pd.DataFrame, test_data: pd.DataFrame):
         variables["sigma_" + col] = np.power(
             np.power(train_data[col], 2).mean(axis=0),
             0.5
-        )
+            )
         train_data[col] /= variables["sigma_" + col]
         test_data[col] /= variables["sigma_" + col]
 
