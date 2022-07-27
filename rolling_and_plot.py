@@ -3,6 +3,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
 import numpy as np
+from sklearn.preprocessing import MaxAbsScaler, MinMaxScaler
+from sklearn.model_selection import train_test_split
 
 
 def helper(value, j):
@@ -234,65 +236,40 @@ def data_plot(data=None, x=None, y=None,
             )
     return figure
 
+
 # -------------------------------------------------------
 
-
-def normalize(train_data: pd.DataFrame, test_data: pd.DataFrame):
+def normalize(data: pd.DataFrame):
     '''
-    pd.DataFrame, pd.DataFrmae -> pd.DataFrame, pd.DataFrame, dict
+    pd.DataFrame -> pd.DataFrame
     Precondition: "delta t" is removed from the DataFrame
 
-    Normalizes the train & test data by subtracting the mean (mu)
-    and dividing by the variance (sigma) of the train set:
-    Results in a distribution with mean = 0 and variance = 1
-    
-    Only done to the Voltage data; the current data has negative and positive
-    values which is necessary to the algorithm so it can't be touched.
-
-    Soc values are simply divided by 100
-    to put them on a scale of 0-1 instead of 0-100.
-
-    Note: using the same mu and sigma for the test set to keep them from the same distribution
+    Normalizes the data by applying sklearn.preprocessing functions
+    Voltage is scaled between 0 and 1;
+    Current is scaled between -1 and 1;
+    SOC is scaled between 0 and 1 (just divided by 100)
 
     Output:
-        normalized train DataFrame, normalized test DataFrame, dict of floats
+        normalized pd.DataFrame
     '''
-    variables = {#"mu_current": 0,
-                 "mu_voltage": 0,
-                 #"sigma_current": 0,
-                 "sigma_voltage": 0}
+    data["current"] = MaxAbsScaler().fit_transform(
+        data["current"].values.reshape(-1, 1))
+    data["voltage"] = MinMaxScaler((0, 1)).fit_transform(
+        data["voltage"].values.reshape(-1, 1))
+    data["soc"] /= 100.
 
-    train_data["soc"] /= 100.
-    test_data["soc"] /= 100.
-    
-    for col in ["voltage"]: #train_data.columns:
-        variables["mu_" + col] = train_data[col].mean(axis=0)
-        train_data[col] -= variables["mu_" + col]
-        test_data[col] -= variables["mu_" + col]
+    print(f'''Scaled stats:
 
-        variables["sigma_" + col] = np.power(
-            np.power(train_data[col], 2).mean(axis=0),
-            0.5
-            )
-        train_data[col] /= variables["sigma_" + col]
-        test_data[col] /= variables["sigma_" + col]
+variance:\n{data.var(axis = 0)},
 
-    print(f'''Normalized stats:
+mean:\n{data.mean(axis=0)}''')
 
-train variance:\n{train_data.var(axis = 0)},
-
-train mean:\n{train_data.mean(axis=0)},
-
-test variance:\n{test_data.var(axis=0)},
-
-test mean:\n{test_data.mean(axis=0)}''')
-
-    return train_data, test_data, variables
+    return data
 
 # -------------------------------------------------------
 
 
-def rolling_trial(df, window_size):
+def rolling_split_trial(df, window_size):
     '''
     implements rolling window sectioning
     There are four input features: delta_t, V, I at time t, and SOC at time t-1
@@ -320,14 +297,26 @@ def rolling_trial(df, window_size):
     return np.array(df_x, dtype="float32"), np.array(df_y, dtype="float32")
 
 
-def rolling(df, window_size):
+def rolling_split(df, window_size, test_size=0.1):
     '''
     Precondition: "delta t" is not in the columns
     implements rolling window sectioning
     Four input features: delta_t, I, V, SOC all at time t-1
     The prediction of SOC at time t uses no other information
+
+    Returns a shuffled and windowed dataset using
+    sklearn.model_selection.train_test_split
+
+    Parameters:
+    `window_size` int
+        the number of consecutive data points needed to form a data window
+    `test_size` float in between 0 and 0.2 exclusive
+        the ratio of data points allocated to the dev/test set
+        Should never exceed 0.2
     '''
     assert "delta t" not in df.columns
+    assert isinstance(test_size, float)
+    assert test_size > 0 and test_size <= 0.2
 
     df_x = [window.values
             for window
@@ -340,5 +329,7 @@ def rolling(df, window_size):
 
     df_y = df["soc"].iloc[window_size + 1:].values
 
-    return np.array(df_x, dtype="float32")[:, np.newaxis],
-    np.array(df_y, dtype="float32")[:, np.newaxis]
+    return train_test_split(np.array(df_x, dtype="float32"),
+                            np.array(df_y, dtype="float32")[:, np.newaxis],
+                            test_size=test_size,
+                            shuffle=True)
