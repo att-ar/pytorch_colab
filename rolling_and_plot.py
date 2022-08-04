@@ -46,7 +46,6 @@ def data_plot(data=None, x=None, y=None,
 
     Parameters:
     `data` DataFrame or list of DataFrames
-        Preferrable if these DataFrames are the output of generate_ocv_pts() and ocv_estimate()
 
     `x` list of columns or nested lists of columns
         example of each option in order:
