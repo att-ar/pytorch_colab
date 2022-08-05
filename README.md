@@ -1,5 +1,7 @@
 # SOC Estimation Using PyTorch and Pandas
 
+**The testing branch is the most up to date one**
+
 This repo contains a pytorch CNN-LSTM network that will be used to estimate State of Charge for a LFP Li-ion (LFP chemistry) cell from real time voltage, current and time data
 
 The CNN-LSTM input will be voltage, current, and previous SOC points in a batch of windowed data (of shape ```(G.batch_size, G.window_size, G.num_features)```) <br>
