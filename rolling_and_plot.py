@@ -1,10 +1,14 @@
+import pandas as pd
+import numpy as np
+
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import pandas as pd
-import numpy as np
+
 from sklearn.preprocessing import MaxAbsScaler, MinMaxScaler
 from sklearn.model_selection import train_test_split
+
+import torch
 
 
 def helper(value, j):
@@ -296,7 +300,7 @@ def rolling_split_trial(df, window_size):
     return np.array(df_x, dtype="float32"), np.array(df_y, dtype="float32")
 
 
-def rolling_split(df, window_size, test_size=0.1):
+def rolling_split(df, window_size, test_size=0.1, train=True):
     '''
     Precondition: "delta t" is not in the columns
     implements rolling window sectioning
@@ -328,7 +332,63 @@ def rolling_split(df, window_size, test_size=0.1):
 
     df_y = df["soc"].iloc[window_size + 1:].values
 
-    return train_test_split(np.array(df_x, dtype="float32"),
-                            np.array(df_y, dtype="float32")[:, np.newaxis],
-                            test_size=test_size,
-                            shuffle=True)
+    if train:
+        return train_test_split(np.array(df_x, dtype="float32"),
+                                np.array(df_y, dtype="float32")[:, np.newaxis],
+                                test_size=test_size,
+                                shuffle=True)
+    else:
+        return (np.array(df_x, dtype="float32"),
+                np.array(df_y, dtype="float32")[:, np.newaxis])
+
+# ----------------------------------------------------------------
+# Validation
+
+
+def validate(model, dataloader, dev=True):
+    '''
+    pytorch model, pytorch DataLoader -> pd.DataFrame, prints 2 tensors and a Plotly plot
+
+    This function runs a dataloader through the model and prints the max and min
+    predicted SOC, it also prints a Plotly plot of the predictions versus the labels
+    This function outputs a pandas.DataFrame of the predictions with their corresponding labels.
+    '''
+    pred = []
+    with torch.no_grad():
+        for x, y in test_dataloader:
+            pred.append(model(x))
+
+    aggregate = []
+    for i in pred:  # this way is faster than list comprehension below
+        aggregate.extend(i)
+    print(max(aggregate), min(aggregate))
+
+    # aggregate = [unit for batch in pred for unit in batch]
+    # print(max(aggregate), min(aggregate))
+
+    np_aggregate = np.array([p.detach().cpu().numpy() for p in aggregate])
+    np_labels = torch.clone(test_dataloader.dataset.labels).detach().cpu().numpy()[
+        :len(np_aggregate)]
+
+    visualize = pd.DataFrame(data={"pred": np_aggregate.squeeze(),
+                                   "labels": np_labels.squeeze()})
+    if dev:  # if it is the dev set, the values need to be sorted by value
+        visualize.sort_values("labels", inplace=True)
+    # if it is the entire dataset, it is already sorted chronologically which is more important
+
+    visualize.reset_index(drop=True)
+
+    visualize["point"] = list(range(1, len(visualize) + 1))
+
+    fig = data_plot(data=visualize,
+                    x=[["point", "point"]],
+                    y=[["pred", "labels"]],
+                    x_title="Data Point",
+                    y_title="SOC",
+                    title="Predicted vs Actual SOC",
+                    name=[["predictions", "labels"]],
+                    mode=[["markers", "markers"]],
+                    color=[["red", "yellow"]]
+                    )
+    fig.show()
+    return visualize
