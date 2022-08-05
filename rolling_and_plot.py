@@ -355,7 +355,7 @@ def validate(model, dataloader, dev=True):
     '''
     pred = []
     with torch.no_grad():
-        for x, y in test_dataloader:
+        for x, y in dataloader:
             pred.append(model(x))
 
     aggregate = []
@@ -367,7 +367,7 @@ def validate(model, dataloader, dev=True):
     # print(max(aggregate), min(aggregate))
 
     np_aggregate = np.array([p.detach().cpu().numpy() for p in aggregate])
-    np_labels = torch.clone(test_dataloader.dataset.labels).detach().cpu().numpy()[
+    np_labels = torch.clone(dataloader.dataset.labels).detach().cpu().numpy()[
         :len(np_aggregate)]
 
     visualize = pd.DataFrame(data={"pred": np_aggregate.squeeze(),
