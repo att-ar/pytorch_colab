@@ -313,7 +313,7 @@ def rolling_split(df, window_size, test_size=0.1, train=True):
     Parameters:
     `window_size` int
         the number of consecutive data points needed to form a data window
-    `test_size` float in between 0 and 0.2 exclusive
+    `test_size` float in (0.0, 0.2]
         the ratio of data points allocated to the dev/test set
         Should never exceed 0.2
     '''
