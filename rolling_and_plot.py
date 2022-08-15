@@ -354,7 +354,8 @@ def validate(model, dataloader, dev=True):
     This function outputs a pandas.DataFrame of the predictions with their corresponding labels.
     '''
     pred = []
-    with torch.no_grad():
+    model.eval() # deactivates dropout and batchnorm
+    with torch.no_grad(): #doesn't compute gradients
         for x, y in dataloader:
             pred.append(model(x))
 
