@@ -1,4 +1,4 @@
-# SOC Estimation Using PyTorch and Pandas
+# SOC Estimation Using PyTorch and Pandas 98% accuracy on Dev set and entire dataset
 
 **The testing branch is the most up to date one**
 
