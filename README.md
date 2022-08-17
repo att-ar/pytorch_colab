@@ -10,3 +10,7 @@ The LSTM input will be voltage, current, and previous SOC points in a batch of w
 The voltage, current and soc data will be from time: $$t - \text{windowsize} - 1 \rightarrow t - 1$$
 
 The output should be the SOC prediction at time $t$ for each batch, the output shape should be ```(G.batch_size, 1)```
+
+98% accurate:
+
+<img src="https://github.com/att-ar/pytorch_colab/blob/main/dataset_predict.png">
