@@ -256,56 +256,44 @@ def normalize(data: pd.DataFrame, capacity: float):
         normalized pd.DataFrame
     '''
     data["current"] /= capacity #turns it into C-rate
-    data["voltage"] = MinMaxScaler((0, 1)).fit_transform(
-        data["voltage"].values.reshape(-1, 1))
+    #Will try without scaling voltage because it assumes same battery chemistry
+    #and a complete cycle form 100-0 SOC
+    # data["voltage"] = MinMaxScaler((0, 1)).fit_transform(
+    #     data["voltage"].values.reshape(-1, 1))
     data["soc"] /= 100.
 
-    print(f'''Scaled stats:
-
-variance:\n{data.var(axis = 0)},
-
-mean:\n{data.mean(axis=0)}''')
+    print(f"Max SOC: {data["soc"].max()}")
+    print(f"Max C-rate: {data["current"].max()}")
 
     return data
 
-# -------------------------------------------------------
+# def rolling_split_trial(df, window_size):
+#     '''
+#     implements rolling window sectioning
+#     There are three input features: V, I, and SOC
+#     Prediction at time t uses the features given
+#     '''
+#     col = ["current", "voltage"]
+#     df_x = (df[col].iloc[1:].reset_index(drop=True)  # staggered right by one
+#         .join(
+#             df["soc"].iloc[:-1].reset_index(drop=True),  # staggered left by one
+#             how="outer"
+#             ))
 
+#     df_x = [window.values
+#             for window
+#             in df_x.rolling(window=window_size,
+#                             method="table"
+#                             )][window_size:]
 
-def rolling_split_trial(df, window_size):
-    '''
-    implements rolling window sectioning
-    There are four input features: delta_t, V, I at time t, and SOC at time t-1
-    Prediction at time t uses the features given
-    '''
-    if "delta t" in df.columns:
-        col = ["delta t", "current", "voltage"]
-    else:
-        col = ["current", "voltage"]
-    df_x = (df[col].iloc[1:].reset_index(drop=True)  # staggered right by one
-            .join(
-        df["soc"].iloc[:-1].reset_index(drop=True),  # staggered left by one
-        how="outer"
-    ))
-    df_x = [window.values
-            for window
-            in df_x.rolling(window=window_size,
-                            min_periods=window_size - 2,
-                            method="table"
-                            )][window_size:]
+#     # staggered right by one
+#     df_y = df["soc"].iloc[window_size + 1:].values[:, np.newaxis]
 
-    # staggered right by one
-    df_y = df["soc"].iloc[window_size + 1:].values[:, np.newaxis]
-
-    return np.array(df_x, dtype="float32"), np.array(df_y, dtype="float32")
+#     return np.array(df_x, dtype="float32"), np.array(df_y, dtype="float32")
 
 
 def rolling_split(df, window_size, test_size=0.1, train=True):
     '''
-    Precondition: "delta t" is not in the columns
-    implements rolling window sectioning
-    Four input features: delta_t, I, V, SOC all at time t-1
-    The prediction of SOC at time t uses no other information
-
     Returns a shuffled and windowed dataset using
     sklearn.model_selection.train_test_split
 
@@ -316,7 +304,6 @@ def rolling_split(df, window_size, test_size=0.1, train=True):
         the ratio of data points allocated to the dev/test set
         Should never exceed 0.2
     '''
-    assert "delta t" not in df.columns
     assert isinstance(test_size, float)
     assert test_size > 0 and test_size <= 0.2
 
@@ -325,7 +312,6 @@ def rolling_split(df, window_size, test_size=0.1, train=True):
             # staggered left by one
             in df[["current", "voltage", "soc"]].iloc[:-1]
             .rolling(window=window_size,
-                     min_periods=window_size - 2,
                      method="table"
                      )][window_size:]
 
@@ -359,12 +345,9 @@ def validate(model, dataloader, dev=True):
             pred.append(model(x))
 
     aggregate = []
-    for i in pred:  # this way is faster than list comprehension below
+    for i in pred:  #aggregate takes all of `pred` and puts it into one list
         aggregate.extend(i)
     print(max(aggregate), min(aggregate))
-
-    # aggregate = [unit for batch in pred for unit in batch]
-    # print(max(aggregate), min(aggregate))
 
     np_aggregate = np.array([p.detach().cpu().numpy() for p in aggregate])
     np_labels = torch.clone(dataloader.dataset.labels).detach().cpu().numpy()[
@@ -374,8 +357,8 @@ def validate(model, dataloader, dev=True):
                                    "labels": np_labels.squeeze()})
     if dev:  # if it is the dev set, the values need to be sorted by value
         visualize.sort_values("labels", inplace=True)
-    # if it is the entire dataset, it is already sorted chronologically which is more important
-
+        # if it is the entire dataset, it is already sorted chronologically which is more important
+    
     visualize.reset_index(drop=True)
 
     visualize["point"] = list(range(1, len(visualize) + 1))
