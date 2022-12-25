@@ -262,8 +262,8 @@ def normalize(data: pd.DataFrame, capacity: float):
     #     data["voltage"].values.reshape(-1, 1))
     data["soc"] /= 100.
 
-    print(f"Max SOC: {data["soc"].max()}")
-    print(f"Max C-rate: {data["current"].max()}")
+    print(f"Max SOC: {data.soc.max()}")
+    print(f"Max C-rate: {data.current.max()}")
 
     return data
 
