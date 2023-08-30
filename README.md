@@ -3,11 +3,12 @@
 **Dataset used is confidential test data and cannot be shared**
 
 However, the repo [att-ar/ecm_battery_simulation](https://github.com/att-ar/ecm_battery_simulation) outputs data in the same structure as the dataset that was used:
+<br>time in seconds, current in Amperes, voltage in Volts, soc in percentage (regular SI units)
 
 |time|current|voltage|soc|
 |---|---|---|---|
 |0.0|0.0|3.65|95|
-|1.0|8.0|3.50|94.99|
+|1.0|-8.0|3.50|94.99|
 |...|...|...|...|
 
 This repo contains a pytorch LSTM network that will be used to estimate State of Charge for a LFP Li-ion (LFP chemistry) cell from real time voltage, current and time data
